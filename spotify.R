@@ -11,7 +11,7 @@ library(reclin)
 library(plyr)
 library(strip)
 
-# __________________________________________ reading and cleaning __________________________________________
+################################################ reading and cleaning ################################################ 
 
 # reading data
 data = read.csv('songs_normalize.csv', header=TRUE, stringsAsFactors = TRUE)
@@ -35,10 +35,12 @@ data <- data[!names(data) %in% c("set()")]
 
 head(data)
 
-poison.data <- data
+poisson.data <- data
+binomial.data <- data
+gam.data <- data
 nn.data <- data 
 
-# __________________________________________ LM __________________________________________
+################################################ Linear Model ################################################ 
 
 data.lm <- lm(data$popularity ~ data$duration_ms + data$danceability + data$speechiness + data$acousticness + data$instrumentalness + data$liveness + data$valence + data$tempo +
               data$blues + data$classical + data$country + data$`Dance/Electronic` + data$`easy listening` + data$`Folk/Acoustic` + data$`hip hop` + data$jazz + data$latin + 
@@ -166,18 +168,56 @@ m
 plot(data$popularity ~ artist, data = data)
 colnames(data)
 
-# __________________________________________ Generalised Linear Model with family set to Poisson __________________________________________
+################################################ Generalised Linear Model with family set to Poisson ################################################ 
+
+str(poisson.data)
+
+poisson.data <- poisson.data[!names(poisson.data) %in% c("ID", "artist", "song", "genre", "explicit")]
+max <- apply(poisson.data, 2, max)
+min <- apply(poisson.data, 2, min)
 
 
+data_scaled <- as.data.frame(scale(poisson.data, center = min, scale = max - min))
+head(data_scaled)
+
+str(data_scaled)
+glm.fits <- glm(year ~ ., data=data_scaled, family = poisson)
+
+summary(glm.fits)
+
+################################################ Generalised Linear Model with family set to Binomial ################################################ 
+
+str(binomial.data)
+
+binomial.data <- binomial.data[!names(binomial.data) %in% c("ID", "artist", "song", "genre", "explicit")]
+max <- apply(binomial.data, 2, max)
+min <- apply(binomial.data, 2, min)
 
 
+data_scaled <- as.data.frame(scale(binomial.data, center = min, scale = max - min))
+head(data_scaled)
+
+str(data_scaled)
+glm.fits <- glm(year ~ ., data=data_scaled, family = binomial)
+
+summary(glm.fits)
+
+################################################ Generalised Additive Model ################################################ 
+
+str(gam.data)
+
+head(gam.data)
 
 
+library(mgcv)
+install.packages('gam')
+library(gam)
 
+cor(gam.data)
+help(cor)
 
+################################################ Neutral Network ################################################ 
 
-
-# __________________________________________ Neutral Network __________________________________________
 
 library(tidyverse)
 library(caret)
@@ -230,3 +270,13 @@ abline(0,1)
 
 # error
 sqrt(mean((test$popularity - pred)^2))
+
+################################################ Support Vector Machine ################################################ 
+
+
+
+
+################################################ solve an optimisation problem ################################################ 
+
+
+

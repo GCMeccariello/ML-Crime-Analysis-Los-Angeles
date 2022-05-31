@@ -35,6 +35,9 @@ data <- data[!names(data) %in% c("set()")]
 
 head(data)
 
+poison.data <- data
+nn.data <- data 
+
 # __________________________________________ LM __________________________________________
 
 data.lm <- lm(data$popularity ~ data$duration_ms + data$danceability + data$speechiness + data$acousticness + data$instrumentalness + data$liveness + data$valence + data$tempo +
@@ -63,8 +66,6 @@ add1(f.1, scope=data.lm)
 summary(f.1)
 
 summary(data.lm)
-
-
 
 
 lm.2 <- lm(data$year ~ data$popularity + data$duration_ms + data$danceability + data$speechiness + data$acousticness + data$instrumentalness + data$liveness + data$valence + data$tempo +
@@ -122,13 +123,7 @@ data.lm
 summary(data.lm)
 
 
-
-
-
-
-
-
-
+# some plots
 
 boxplot(data$popularity)
 boxplot(data$danceability, data$energy, data$speechiness, data$acousticness, data$instrumentalness, data$liveness, data$valence)
@@ -171,18 +166,67 @@ m
 plot(data$popularity ~ artist, data = data)
 colnames(data)
 
+# __________________________________________ Generalised Linear Model with family set to Poisson __________________________________________
 
 
-# 
 
-# library(purrr)
-# library(tidyr)
-# library(ggplot2)
-# 
-# data %>%
-#   keep(is.numeric) %>%
-#   gather() %>%
-#   ggplot(aes(value)) +
-#   facet_wrap(~ key, scales = "free") +
-#   geom_histogram()
-# 
+
+
+
+
+
+
+
+# __________________________________________ Neutral Network __________________________________________
+
+library(tidyverse)
+library(caret)
+library(neuralnet)
+library(dplyr)
+library(lattice)
+
+head(nn.data)
+nn.data <- nn.data[!names(nn.data) %in% c("ID", "artist", "song", "genre", "explicit")]
+
+str(nn.data)
+
+set.seed(014)
+indices <- createDataPartition(nn.data$popularity, p = 0.8, list = FALSE)
+train <- nn.data %>% slice(indices)
+test <- nn.data %>% slice(-indices)
+boxplot(train$popularity, test$popularity, nn.data %>% sample_frac(0.2) %>% pull(popularity))
+
+# scaling data 0..1
+
+max <- apply(nn.data, 2, max)
+min <- apply(nn.data, 2, min)
+
+
+data_scaled <- as.data.frame(scale(nn.data, center = min, scale = max - min))
+
+train_scaled <- data_scaled %>% slice(indices)
+test_scaled <- data_scaled %>% slice(-indices)
+
+
+set.seed(015)
+data_net = neuralnet(popularity ~ duration_ms + danceability + energy + key + loudness + mode + speechiness + acousticness +instrumentalness +liveness + valence+tempo, train_scaled, hidden = 6 , linear.output = TRUE)
+data_net = neuralnet(popularity ~ `Dance/Electronic` + `hip hop` + metal + `R&B` + duration_ms, train_scaled, hidden = 6 , linear.output = TRUE)
+
+plot(data_net)
+
+
+data_net = neuralnet(popularity ~  duration_ms + danceability + year + speechiness, train_scaled, hidden = 15 , linear.output = FALSE)
+
+
+# prediction
+
+pred_scaled <- compute(data_net, test_scaled %>% select(-popularity))
+pred <- pred_scaled$net.result * (max(nn.data$popularity) - min(nn.data$popularity)) + min(nn.data$popularity)
+pred
+
+
+plot(test$popularity, pred, col='blue', pch=16, ylab = "predicted rating NN", xlab = "real rating", ylim=c(0,80))
+abline(0,1)
+
+# error
+sqrt(mean((test$popularity - pred)^2))
